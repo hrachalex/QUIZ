@@ -1,5 +1,7 @@
 'use client'
 import { useState, useEffect } from "react";
+import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 type Question = {
   question: string;
@@ -41,14 +43,22 @@ const quizData: Question[] = [
 ];
 
 const QuizApp = () => {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [userAnswers, setUserAnswers] = useState<string[]>([]);
   const [showScore, setShowScore] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(60); // Total time for the quiz in seconds
+  const [timeLeft, setTimeLeft] = useState(60);
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [status, router]);
 
   useEffect(() => {
     if (timeLeft <= 0) {
-      setShowScore(true); // End quiz when time runs out
+      setShowScore(true);
       return;
     }
 
@@ -56,7 +66,7 @@ const QuizApp = () => {
       setTimeLeft(timeLeft - 1);
     }, 1000);
 
-    return () => clearTimeout(timer); // Clean up the timer
+    return () => clearTimeout(timer);
   }, [timeLeft]);
 
   const handleAnswerOptionClick = (selectedOption: string) => {
@@ -74,10 +84,29 @@ const QuizApp = () => {
     return userAnswer === correctAnswer ? "Correct" : "Wrong";
   };
 
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-500 to-indigo-800 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-500 to-indigo-800 flex items-center justify-center">
       <div className="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full">
-        <h1 className="text-2xl font-bold text-center text-gray-800">Quiz App</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Quiz App</h1>
+          <div className="flex items-center space-x-4">
+            <span className="text-gray-600">Welcome, {session?.user?.email}</span>
+            <button
+              onClick={() => signOut()}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
         {showScore ? (
           <div className="mt-8">
             <h2 className="text-xl font-semibold text-gray-700 text-center">
@@ -112,7 +141,7 @@ const QuizApp = () => {
                   setCurrentQuestion(0);
                   setUserAnswers([]);
                   setShowScore(false);
-                  setTimeLeft(60); // Reset timer
+                  setTimeLeft(60);
                 }}
               >
                 Restart Quiz
